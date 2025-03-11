@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ucloud Signin</title>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode/build/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/html5-qrcode/minified/html5-qrcode.min.js"></script>
+    <style>
+    </style>
+</head>
+<body>
+    <button id="showImageBtn">扫描二维码</button>
+    <div id="reader" style="width: 600px;"></div>
+    <div id="updateTime"></div>
+    <div id="qrcode"></div>
+    <script>
+        // 上传新的签到信息
+        document.getElementById('showImageBtn').addEventListener('click', () => {
+            document.getElementById('showImageBtn').style.display = 'none';
+            const html5QrCode = new Html5Qrcode("reader");
+            const qrCodeSuccessCallback = (decodedText, decodedResult) => {
+                fetch('/newData', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ data: decodedText })
+                })
+                .then(response => response.json())
+                .then(data => {
+                })
+                .catch((error) => {
+                });
+                html5QrCode.stop();
+                document.getElementById('showImageBtn').style.display = 'block';
+            };
+            const config = { fps: 10, qrbox: { width: 300, height: 300 } }; // 调整 qrbox 的大小
+            html5QrCode.start({ facingMode: "environment" }, config, qrCodeSuccessCallback);
+        });
+
+        // 更新签到信息
+        
+        function updateData() {
+            fetch('/getData')
+                .then(response => response.json())
+                .then(data => {
+                    if (data.lastUpdateTime === undefined) {
+                        document.getElementById('updateTime').innerText = '未生成二维码';
+                        document.getElementById('qrcode').innerHTML = '';
+                    } else {
+                        document.getElementById('updateTime').innerText = `Last Update Time: ${data.lastUpdateTime}`;
+                        const currentTime = new Date().toISOString();
+                        const qrCodeData = `checkwork|id=${data.lastData.id}&siteId=${data.lastData.siteId}&createTime=${currentTime}&classLessonId=${data.lastData.classLessonId}`;
+                        QRCode.toDataURL(qrCodeData, function (err, url) {
+                            if (err) {
+                                console.error('Error generating QR code:', err);
+                                return;
+                            }
+                            const img = document.createElement('img');
+                            img.src = url;
+                            const qrcodeDiv = document.getElementById('qrcode');
+                            qrcodeDiv.innerHTML = '';
+                            qrcodeDiv.appendChild(img);
+                        });
+                    }
+                })
+                .catch((error) => {
+                    console.error('Error:', error);
+                });
+        }
+        updateData();
+        setInterval(updateData, 1000);
+    </script>
+</body>
+</html>
