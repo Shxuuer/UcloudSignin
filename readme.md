@@ -23,6 +23,12 @@ openssl req -nodes -new -x509 -keyout server.key -out server.cert
 npm install
 ```
 
+### 运行
+
+```
+(sudo) node backend.js
+```
+
 ## 使用教程
 
 部署后查看`https:{yourip}`
