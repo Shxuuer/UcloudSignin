@@ -15,6 +15,7 @@ let lastData = {
   id: 0,
   siteId: 0,
   classLessonId: 0,
+  createTime: null,
 };
 
 function getIndex(res) {
@@ -38,7 +39,7 @@ function newData(req, res) {
     const data = JSON.parse(body).data;
     // 检查接收到的数据
     const reg =
-      /checkwork\|id=(\d+)&siteId=(\d+)&createTime=(\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{2})&classLessonId=(\d+)/;
+      /checkwork\|id=(\d+)&siteId=(\d+)&createTime=(\d+-\d+-\d+T\d+:\d+:\d+\.\d+)&classLessonId=(\d+)/;
     if (!reg.test(data)) {
       res.writeHead(400, { "Content-Type": "text/plain" });
       res.end("Bad Request");
@@ -49,8 +50,10 @@ function newData(req, res) {
     lastData = {
       id: parseInt(match[1]),
       siteId: parseInt(match[2]),
+      createTime: new Date(match[3]),
       classLessonId: parseInt(match[4]),
     };
+    console.log(lastData);
     // 时间保存为当前时间
     lastUpdateTime = new Date().toISOString();
     res.writeHead(200, { "Content-Type": "application/json" });

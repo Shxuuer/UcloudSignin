@@ -17,12 +17,6 @@ cd UcloudSignin
 openssl req -nodes -new -x509 -keyout server.key -out server.cert
 ```
 
-### 安装依赖
-
-```
-npm install
-```
-
 ### 运行
 
 ```
