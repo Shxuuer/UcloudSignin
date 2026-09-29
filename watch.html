@@ -1,0 +1,69 @@
+<!doctype html>
+<html>
+  <body
+    style="
+      margin: 0;
+      background: #000;
+      color: #fff;
+      font-family: sans-serif;
+      overflow: hidden;
+    "
+  >
+    <div
+      style="
+        position: fixed;
+        inset: 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        align-items: center;
+        gap: 16px;
+        text-align: center;
+        padding: 20px;
+        box-sizing: border-box;
+      "
+    >
+      <h2 style="margin: 0; font-size: clamp(18px, 3vw, 32px)">实时扫码记录</h2>
+      <div
+        id="out"
+        style="font-size: clamp(18px, 2.5vw, 38px); min-height: 1.5em"
+      ></div>
+      <div
+        id="qrcode-box"
+        style="display: flex; justify-content: center; align-items: center"
+      ></div>
+    </div>
+
+    <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+    <script>
+      const wsProtocol = location.protocol === "https:" ? "wss:" : "ws:";
+      const ws = new WebSocket(`${wsProtocol}//${location.host}`);
+      const out = document.getElementById("out");
+      const qrBox = document.getElementById("qrcode-box");
+      let qrcode = null;
+
+      // 清空二维码
+      function clearQr() {
+        qrBox.innerHTML = "";
+        qrcode = null;
+      }
+
+      ws.onopen = () => console.log("ws 连接成功");
+      ws.onclose = (e) => alert("ws断开 " + e.code);
+      ws.onerror = (err) => alert("ws出错");
+
+      ws.onmessage = (e) => {
+        const msg = JSON.parse(e.data);
+        if (msg.status === "ok") {
+          out.innerText = `【识别】${msg.data}`;
+          clearQr();
+          qrcode = new QRCode(qrBox, {
+            text: msg.data,
+            width: 220,
+            height: 220,
+          });
+        }
+      };
+    </script>
+  </body>
+</html>

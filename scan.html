@@ -1,0 +1,135 @@
+<!doctype html>
+<html>
+  <body style="margin: 0; background: #000; overflow: hidden">
+    <div
+      id="status"
+      style="
+        position: fixed;
+        top: 12px;
+        left: 12px;
+        z-index: 2;
+        max-width: calc(100vw - 24px);
+        padding: 8px 12px;
+        border-radius: 8px;
+        background: rgba(0, 0, 0, 0.6);
+        color: #fff;
+        font: 14px/1.4 sans-serif;
+      "
+    ></div>
+    <video
+      id="cam"
+      autoplay
+      playsinline
+      style="
+        position: fixed;
+        inset: 0;
+        width: 100vw;
+        height: 100vh;
+        object-fit: contain;
+        background: #000;
+      "
+    ></video>
+    <canvas id="canvas" style="display: none"></canvas>
+    <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.min.js"></script>
+    <script>
+      const video = document.getElementById("cam");
+      const canvas = document.getElementById("canvas");
+      const status = document.getElementById("status");
+      const ctx = canvas.getContext("2d", { willReadFrequently: true });
+      let lastScannedData = null;
+
+      function setStatus(message) {
+        status.textContent = message;
+      }
+
+      const cameraConstraints = {
+        facingMode: { ideal: "environment" },
+        width: { ideal: 1920 },
+        height: { ideal: 1080 },
+        frameRate: { ideal: 30, max: 30 },
+        aspectRatio: { ideal: 16 / 9 },
+        focusMode: { ideal: "continuous" },
+        exposureMode: { ideal: "continuous" },
+        whiteBalanceMode: { ideal: "continuous" },
+        resizeMode: "none",
+      };
+
+      setStatus("正在请求后置摄像头和自动对焦...");
+
+      navigator.mediaDevices
+        .getUserMedia({ video: cameraConstraints })
+        .then((stream) => {
+          video.srcObject = stream;
+
+          const track = stream.getVideoTracks()[0];
+          const capabilities =
+            track && track.getCapabilities ? track.getCapabilities() : {};
+          const trackConstraints = {};
+
+          if (capabilities.focusMode) {
+            if (capabilities.focusMode.includes("continuous")) {
+              trackConstraints.focusMode = "continuous";
+            } else if (capabilities.focusMode.includes("auto")) {
+              trackConstraints.focusMode = "auto";
+            }
+          }
+
+          if (
+            capabilities.exposureMode &&
+            capabilities.exposureMode.includes("continuous")
+          ) {
+            trackConstraints.exposureMode = "continuous";
+          }
+
+          if (
+            capabilities.whiteBalanceMode &&
+            capabilities.whiteBalanceMode.includes("continuous")
+          ) {
+            trackConstraints.whiteBalanceMode = "continuous";
+          }
+
+          if (Object.keys(trackConstraints).length > 0) {
+            track.applyConstraints(trackConstraints).catch(() => {});
+            setStatus(
+              "已启用相机对焦/曝光控制，若仍发糊，可能是浏览器不支持或距离/光线不合适。",
+            );
+          } else {
+            setStatus(
+              "当前浏览器没有暴露对焦控制，可能会自动对焦不稳定；可尝试 Chrome/Edge 或系统相机。",
+            );
+          }
+
+          video.play().catch(() => {});
+        })
+        .catch(() => {
+          setStatus("无法打开相机，请确认已授权摄像头，或尝试更换浏览器。");
+        });
+
+      async function scanLoop() {
+        if (video.readyState === video.HAVE_ENOUGH_DATA) {
+          canvas.width = video.videoWidth;
+          canvas.height = video.videoHeight;
+          ctx.drawImage(video, 0, 0);
+          const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+          const code = jsQR(imgData.data, imgData.width, imgData.height);
+
+          if (code) {
+            const currentData = code.data;
+            if (currentData !== lastScannedData) {
+              lastScannedData = currentData;
+              fetch("/scan", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ data: currentData, ts: Date.now() }),
+              }).catch(() => {});
+            }
+          } else {
+            lastScannedData = null;
+          }
+        }
+        setTimeout(scanLoop, 10);
+      }
+      scanLoop();
+    </script>
+  </body>
+</html>
